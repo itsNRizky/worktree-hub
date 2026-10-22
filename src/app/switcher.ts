@@ -16,6 +16,8 @@ export interface SwitchPorts {
   startAgent(path: string): Promise<void>;
   /** Opens a plain shell in the worktree. Nothing is typed into it. */
   startShell(path: string): Promise<void>;
+  /** Makes VS Code's own Git status show this worktree (see src/core/gitNudge.ts). */
+  pointGitAt(path: string): Promise<void>;
   reveal(path: string): Promise<void>;
   isMissing(path: string): boolean;
 }
@@ -68,7 +70,10 @@ export class Switcher {
       // must save B's tabs, not overwrite A's remembered tabs with an empty list.
       await p.setActive(target);
       if (path === null) return;
-      await p.restoreTabs(target.flatMap((w) => p.loadTabs(w)));
+      const tabs = target.flatMap((w) => p.loadTabs(w));
+      await p.restoreTabs(tabs);
+      // A restored file already makes VS Code's Git follow; without one, it would keep the old repo.
+      if (tabs.length === 0) await p.pointGitAt(path);
     }
     if (path === null) return;
 

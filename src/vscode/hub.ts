@@ -12,6 +12,7 @@ import { ensureHookSettings, statusDirOf, StatusWatcher } from './agentStatus';
 import { onProjectsChanged, readProjects } from './config';
 import { restoreTabs, saveAndCloseTabs } from './editorTabs';
 import { FolderSwapper } from './folderSwapper';
+import { pointGitAt } from './gitNudge';
 import { TerminalRegistry } from './terminals';
 import { WorktreeTreeProvider } from './treeProvider';
 import { isHubWorkspace } from './workspaceSetup';
@@ -145,6 +146,7 @@ export async function createHub(context: vscode.ExtensionContext, output: vscode
     startShell: async (p: string) => {
       await registry.createShell(p);
     },
+    pointGitAt,
     reveal: async (p: string) => {
       await vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(p));
     },

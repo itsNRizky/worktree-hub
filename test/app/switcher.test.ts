@@ -50,6 +50,9 @@ function fake(o: FakeOptions = {}) {
     startShell: async (p) => {
       calls.push(`startShell(${p})`);
     },
+    pointGitAt: async (p) => {
+      calls.push(`pointGitAt(${p})`);
+    },
     reveal: async (p) => {
       calls.push(`reveal(${p})`);
     },
@@ -73,6 +76,19 @@ describe('Switcher', () => {
       'reveal(B)',
       'showLastTerminal(B)',
     ]);
+  });
+
+  it('points VS Code Git at the new worktree when no tabs come back, before revealing it', async () => {
+    const { ports, calls } = fake();
+    await new Switcher(ports, solo).switchTo('B', { userInitiated: true });
+    expect(calls.indexOf('pointGitAt(B)')).toBe(calls.indexOf('restoreTabs()') + 1);
+    expect(calls.indexOf('pointGitAt(B)')).toBeLessThan(calls.indexOf('reveal(B)'));
+  });
+
+  it('does not point VS Code Git anywhere when tabs come back (the open file already does it)', async () => {
+    const { ports, calls } = fake({ tabs: { B: [tab('B/x.ts')] } });
+    await new Switcher(ports, solo).switchTo('B', { userInitiated: true });
+    expect(calls.some((c) => c.startsWith('pointGitAt'))).toBe(false);
   });
 
   it('records the new task right after the folder swap, so a later failure cannot leave it stale', async () => {
