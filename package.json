@@ -50,7 +50,8 @@
       { "command": "worktreeHub.removeProject", "title": "Remove Project", "category": "Worktree Hub" },
       { "command": "worktreeHub.createWorktree", "title": "New Worktree", "category": "Worktree Hub", "icon": "$(add)" },
       { "command": "worktreeHub.link", "title": "Link to Another Repo…", "category": "Worktree Hub", "icon": "$(link)" },
-      { "command": "worktreeHub.unlink", "title": "Unlink", "category": "Worktree Hub" }
+      { "command": "worktreeHub.unlink", "title": "Unlink", "category": "Worktree Hub" },
+      { "command": "worktreeHub.removeWorktree", "title": "Remove Worktree…", "category": "Worktree Hub" }
     ],
     "menus": {
       "commandPalette": [
@@ -62,7 +63,8 @@
         { "command": "worktreeHub.revealInFinder", "when": "false" },
         { "command": "worktreeHub.removeProject", "when": "false" },
         { "command": "worktreeHub.link", "when": "false" },
-        { "command": "worktreeHub.unlink", "when": "false" }
+        { "command": "worktreeHub.unlink", "when": "false" },
+        { "command": "worktreeHub.removeWorktree", "when": "false" }
       ],
       "view/title": [
         { "command": "worktreeHub.createWorktree", "when": "view == worktreeHub.tree", "group": "navigation@1" },
@@ -81,6 +83,7 @@
         { "command": "worktreeHub.link", "when": "view == worktreeHub.tree && viewItem =~ /^worktree:(plain|linked)$/", "group": "2_link@1" },
         { "command": "worktreeHub.unlink", "when": "view == worktreeHub.tree && viewItem == worktree:linked", "group": "2_link@2" },
         { "command": "worktreeHub.revealInFinder", "when": "view == worktreeHub.tree && viewItem =~ /^worktree:(primary|plain|linked)$/", "group": "8_misc@1" },
+        { "command": "worktreeHub.removeWorktree", "when": "view == worktreeHub.tree && viewItem =~ /^worktree:(plain|linked|missing)$/", "group": "9_remove@1" },
         { "command": "worktreeHub.closeTerminal", "when": "view == worktreeHub.tree && viewItem =~ /^(agent|shell)$/", "group": "inline@1" },
         { "command": "worktreeHub.closeTerminal", "when": "view == worktreeHub.tree && viewItem =~ /^(agent|shell)$/", "group": "1_terminal@1" }
       ]

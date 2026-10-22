@@ -4,6 +4,7 @@ import { registerAgentCommands } from './vscode/commands/agents';
 import { registerCreateWorktree } from './vscode/commands/createWorktree';
 import { registerLinkCommands } from './vscode/commands/link';
 import { registerProjectCommands } from './vscode/commands/projects';
+import { registerRemoveWorktree } from './vscode/commands/removeWorktree';
 import { createHub } from './vscode/hub';
 import { isHubWorkspace, setupWorkspace } from './vscode/workspaceSetup';
 
@@ -27,6 +28,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     ...registerProjectCommands(hub),
     registerCreateWorktree(hub),
     ...registerLinkCommands(hub),
+    registerRemoveWorktree(hub),
   );
 
   if (context.extensionMode === vscode.ExtensionMode.Development) {
