@@ -7,6 +7,7 @@ import {
   checkBranchName,
   dirtyCount,
   GitError,
+  gitEnv,
   isMainCheckout,
   listBranches,
   listWorktrees,
@@ -126,5 +127,15 @@ describe('runGit', () => {
     const err = await runGit(['nope'], repo.main).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(GitError);
     expect((err as GitError).stderr).not.toBe('');
+  });
+});
+
+describe('gitEnv', () => {
+  it('never takes optional locks, so a background git status cannot block an agent\'s git commit', () => {
+    expect(gitEnv().GIT_OPTIONAL_LOCKS).toBe('0');
+  });
+
+  it('never waits for a password prompt', () => {
+    expect(gitEnv().GIT_TERMINAL_PROMPT).toBe('0');
   });
 });

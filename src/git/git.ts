@@ -17,6 +17,19 @@ export class GitError extends Error {
   }
 }
 
+/** The environment for every git call. */
+export function gitEnv(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    // Never let git wait for a password prompt that nobody can see.
+    GIT_TERMINAL_PROMPT: '0',
+    // `git status` normally takes index.lock for a moment to refresh the index. The sidebar runs it
+    // in the background while agents run `git add`/`git commit`, and a held lock makes their commands
+    // fail with "index.lock: File exists". VS Code's own git extension sets this for the same reason.
+    GIT_OPTIONAL_LOCKS: '0',
+  };
+}
+
 /** Runs `git <args>` in `cwd` and returns stdout. Rejects with a GitError on a non-zero exit. */
 export function runGit(args: string[], cwd: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -25,8 +38,7 @@ export function runGit(args: string[], cwd: string): Promise<string> {
       args,
       {
         cwd,
-        // Never let git wait for a password prompt that nobody can see.
-        env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+        env: gitEnv(),
         maxBuffer: 16 * 1024 * 1024,
       },
       (error, stdout, stderr) => {
