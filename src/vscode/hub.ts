@@ -142,6 +142,9 @@ export async function createHub(context: vscode.ExtensionContext, output: vscode
     },
     hasEverHadAgent: (p: string) => registry.hasEverHadAgent(p),
     startAgent,
+    startShell: async (p: string) => {
+      await registry.createShell(p);
+    },
     reveal: async (p: string) => {
       await vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(p));
     },

@@ -17,10 +17,13 @@ export interface AgentCommandDeps {
 export function registerAgentCommands(deps: AgentCommandDeps): vscode.Disposable[] {
   const { registry, statuses, switcher } = deps;
 
-  /** Makes the worktree's task active first (without auto-starting an agent), if it is not already. */
+  /**
+   * Makes the worktree's task active first, if it is not already. `terminal: 'none'` because every
+   * caller shows or creates a terminal right after; an extra shell would only be in the way.
+   */
   const ensureActive = async (worktreePath: string) => {
     if (!deps.getActive().includes(worktreePath)) {
-      await switcher.switchTo(worktreePath, { userInitiated: false });
+      await switcher.switchTo(worktreePath, { userInitiated: false, terminal: 'none' });
     }
   };
 

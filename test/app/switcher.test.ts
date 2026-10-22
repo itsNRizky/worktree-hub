@@ -47,6 +47,9 @@ function fake(o: FakeOptions = {}) {
     startAgent: async (p) => {
       calls.push(`startAgent(${p})`);
     },
+    startShell: async (p) => {
+      calls.push(`startShell(${p})`);
+    },
     reveal: async (p) => {
       calls.push(`reveal(${p})`);
     },
@@ -85,7 +88,7 @@ describe('Switcher', () => {
   it('only shows the terminal and the folder when the worktree is already active', async () => {
     const { ports, calls } = fake({ active: ['B'] });
     await new Switcher(ports, solo).switchTo('B', { userInitiated: true });
-    expect(calls).toEqual(['showLastTerminal(B)', 'reveal(B)']);
+    expect(calls).toEqual(['reveal(B)', 'showLastTerminal(B)']);
   });
 
   it('opens every worktree of a linked task, in group order', async () => {
@@ -109,16 +112,37 @@ describe('Switcher', () => {
     expect(calls.indexOf('startAgent(B)')).toBeGreaterThan(calls.indexOf('reveal(B)'));
   });
 
-  it('never starts an agent on a switch the extension makes by itself', async () => {
+  it('never starts an agent on a switch the extension makes by itself; it opens a plain shell instead', async () => {
     const { ports, calls } = fake({ hasTerminal: false, hadAgent: false });
     await new Switcher(ports, solo).switchTo('B', { userInitiated: false });
     expect(calls).not.toContain('startAgent(B)');
+    expect(calls.at(-1)).toBe('startShell(B)');
   });
 
-  it('does not start a new agent where the user already had one', async () => {
+  it('opens a plain shell where the user already had an agent but no terminal is left', async () => {
     const { ports, calls } = fake({ hasTerminal: false, hadAgent: true });
     await new Switcher(ports, solo).switchTo('B', { userInitiated: true });
     expect(calls).not.toContain('startAgent(B)');
+    expect(calls.at(-1)).toBe('startShell(B)');
+  });
+
+  it('opens no terminal of its own when the caller creates one right after the switch', async () => {
+    const { ports, calls } = fake({ hasTerminal: false, hadAgent: true });
+    await new Switcher(ports, solo).switchTo('B', { userInitiated: false, terminal: 'none' });
+    expect(calls).not.toContain('startShell(B)');
+    expect(calls).not.toContain('startAgent(B)');
+  });
+
+  it('opens nothing extra when the task already has a terminal', async () => {
+    const { ports, calls } = fake({ hasTerminal: true });
+    await new Switcher(ports, solo).switchTo('B', { userInitiated: true });
+    expect(calls.filter((c) => c.startsWith('start'))).toEqual([]);
+  });
+
+  it('opens a shell when the active worktree is clicked again after its last terminal was closed', async () => {
+    const { ports, calls } = fake({ active: ['B'], hasTerminal: false, hadAgent: true });
+    await new Switcher(ports, solo).switchTo('B', { userInitiated: true });
+    expect(calls).toEqual(['reveal(B)', 'showLastTerminal(B)', 'startShell(B)']);
   });
 
   it('refuses a missing worktree before touching anything', async () => {
