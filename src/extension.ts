@@ -5,6 +5,7 @@ import * as git from './git/git';
 import { registerSpike } from './spike/spike';
 import { onProjectsChanged, readProjects } from './vscode/config';
 import { WorktreeTreeProvider } from './vscode/treeProvider';
+import { isHubWorkspace, setupWorkspace } from './vscode/workspaceSetup';
 
 const REFRESH_INTERVAL_MS = 15_000;
 
@@ -52,10 +53,11 @@ export function activate(context: vscode.ExtensionContext): void {
     return running;
   };
 
-  void vscode.commands.executeCommand('setContext', 'worktreeHub.isHub', false);
+  void vscode.commands.executeCommand('setContext', 'worktreeHub.isHub', isHubWorkspace());
 
   context.subscriptions.push(
     vscode.commands.registerCommand('worktreeHub.refresh', refresh),
+    vscode.commands.registerCommand('worktreeHub.setupWorkspace', setupWorkspace),
     onProjectsChanged(refresh),
     vscode.window.onDidChangeWindowState((s) => {
       if (s.focused) void refresh();

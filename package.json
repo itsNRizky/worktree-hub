@@ -38,11 +38,13 @@
       { "command": "worktreeHub.spike.terminal", "title": "Open Terminal", "category": "Worktree Hub Spike" },
       { "command": "worktreeHub.spike.show", "title": "Show Terminal", "category": "Worktree Hub Spike" },
       { "command": "worktreeHub.spike.terminals", "title": "List Terminals", "category": "Worktree Hub Spike" },
-      { "command": "worktreeHub.refresh", "title": "Refresh", "category": "Worktree Hub", "icon": "$(refresh)" }
+      { "command": "worktreeHub.refresh", "title": "Refresh", "category": "Worktree Hub", "icon": "$(refresh)" },
+      { "command": "worktreeHub.setupWorkspace", "title": "Set Up Workspace", "category": "Worktree Hub" }
     ],
     "menus": {
       "view/title": [
-        { "command": "worktreeHub.refresh", "when": "view == worktreeHub.tree", "group": "navigation@2" }
+        { "command": "worktreeHub.refresh", "when": "view == worktreeHub.tree", "group": "navigation@2" },
+        { "command": "worktreeHub.setupWorkspace", "when": "view == worktreeHub.tree", "group": "9_setup@2" }
       ]
     },
     "viewsWelcome": [
