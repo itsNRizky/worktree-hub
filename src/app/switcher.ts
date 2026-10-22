@@ -57,14 +57,15 @@ export class Switcher {
       for (const w of active) await p.storeTabs(w, saved.get(w) ?? []);
     }
     await p.setFolders(target);
-    if (path === null) {
-      await p.setActive([]);
-      return;
-    }
+    // Record the new task as soon as its folders are open: if a later step fails, the next switch
+    // must save B's tabs, not overwrite A's remembered tabs with an empty list.
+    await p.setActive(target);
+    if (path === null) return;
     await p.restoreTabs(target.flatMap((w) => p.loadTabs(w)));
+    // Reveal before the terminal: revealing moves focus to the Explorer, and the terminal (or a new
+    // agent) should end up with the focus, ready for typing.
+    await p.reveal(path);
     const shown = p.showLastTerminal(target);
     if (!shown && opts.userInitiated && !p.hasEverHadAgent(path)) await p.startAgent(path);
-    await p.reveal(path);
-    await p.setActive(target);
   }
 }

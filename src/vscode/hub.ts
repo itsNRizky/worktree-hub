@@ -136,8 +136,9 @@ export async function createHub(context: vscode.ExtensionContext, output: vscode
     },
     restoreTabs,
     showLastTerminal: (paths: string[]) => {
+      // Takes the focus, so the user can type into the agent right after the switch.
       const rec = registry.lastFocused(paths);
-      return rec ? registry.show(rec.id, true) : false;
+      return rec ? registry.show(rec.id) : false;
     },
     hasEverHadAgent: (p: string) => registry.hasEverHadAgent(p),
     startAgent,

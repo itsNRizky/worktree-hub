@@ -65,11 +65,21 @@ describe('Switcher', () => {
       'saveAndCloseTabs(A)',
       'storeTabs(A)',
       'setFolders(B)',
-      'restoreTabs(B/x.ts)',
-      'showLastTerminal(B)',
-      'reveal(B)',
       'setActive(B)',
+      'restoreTabs(B/x.ts)',
+      'reveal(B)',
+      'showLastTerminal(B)',
     ]);
+  });
+
+  it('records the new task right after the folder swap, so a later failure cannot leave it stale', async () => {
+    const { ports, calls } = fake();
+    ports.reveal = async () => {
+      throw new Error('reveal failed');
+    };
+    await expect(new Switcher(ports, solo).switchTo('B', { userInitiated: true })).rejects.toThrow('reveal failed');
+    expect(ports.getActive()).toEqual(['B']);
+    expect(calls.indexOf('setActive(B)')).toBe(calls.indexOf('setFolders(B)') + 1);
   });
 
   it('only shows the terminal and the folder when the worktree is already active', async () => {
@@ -95,6 +105,8 @@ describe('Switcher', () => {
     const { ports, calls } = fake({ hasTerminal: false, hadAgent: false });
     await new Switcher(ports, solo).switchTo('B', { userInitiated: true });
     expect(calls.indexOf('startAgent(B)')).toBeGreaterThan(calls.indexOf('restoreTabs()'));
+    // Reveal first: revealing the folder moves focus to the Explorer, and the user wants to type into Claude.
+    expect(calls.indexOf('startAgent(B)')).toBeGreaterThan(calls.indexOf('reveal(B)'));
   });
 
   it('never starts an agent on a switch the extension makes by itself', async () => {
@@ -127,7 +139,7 @@ describe('Switcher', () => {
     const { ports, calls } = fake();
     const s = new Switcher(ports, solo);
     await Promise.all([s.switchTo('B', { userInitiated: true }), s.switchTo('C', { userInitiated: true })]);
-    expect(calls.indexOf('setActive(B)')).toBeLessThan(calls.indexOf('saveAndCloseTabs(B)'));
-    expect(calls.at(-1)).toBe('setActive(C)');
+    expect(calls.indexOf('showLastTerminal(B)')).toBeLessThan(calls.indexOf('saveAndCloseTabs(B)'));
+    expect(calls.at(-1)).toBe('showLastTerminal(C)');
   });
 });
