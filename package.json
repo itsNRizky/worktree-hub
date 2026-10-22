@@ -37,7 +37,25 @@
       { "command": "worktreeHub.spike.setFolder", "title": "Set Folder", "category": "Worktree Hub Spike" },
       { "command": "worktreeHub.spike.terminal", "title": "Open Terminal", "category": "Worktree Hub Spike" },
       { "command": "worktreeHub.spike.show", "title": "Show Terminal", "category": "Worktree Hub Spike" },
-      { "command": "worktreeHub.spike.terminals", "title": "List Terminals", "category": "Worktree Hub Spike" }
+      { "command": "worktreeHub.spike.terminals", "title": "List Terminals", "category": "Worktree Hub Spike" },
+      { "command": "worktreeHub.refresh", "title": "Refresh", "category": "Worktree Hub", "icon": "$(refresh)" }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "worktreeHub.refresh", "when": "view == worktreeHub.tree", "group": "navigation@2" }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "worktreeHub.tree",
+        "contents": "Worktree Hub works in its own workspace, so it can switch folders without reloading the window.\n[Set Up Workspace](command:worktreeHub.setupWorkspace)",
+        "when": "!worktreeHub.isHub"
+      },
+      {
+        "view": "worktreeHub.tree",
+        "contents": "No projects yet.\n[Add Project](command:worktreeHub.addProject)",
+        "when": "worktreeHub.isHub && worktreeHub.noProjects"
+      }
     ],
     "configuration": {
       "title": "Worktree Hub",
