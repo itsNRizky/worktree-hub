@@ -45,7 +45,10 @@
       { "command": "worktreeHub.newAgent", "title": "New Agent", "category": "Worktree Hub", "icon": "$(add)" },
       { "command": "worktreeHub.newTerminal", "title": "New Terminal", "category": "Worktree Hub", "icon": "$(terminal)" },
       { "command": "worktreeHub.closeTerminal", "title": "Close", "category": "Worktree Hub", "icon": "$(close)" },
-      { "command": "worktreeHub.revealInFinder", "title": "Reveal in Finder", "category": "Worktree Hub" }
+      { "command": "worktreeHub.revealInFinder", "title": "Reveal in Finder", "category": "Worktree Hub" },
+      { "command": "worktreeHub.addProject", "title": "Add Project", "category": "Worktree Hub" },
+      { "command": "worktreeHub.removeProject", "title": "Remove Project", "category": "Worktree Hub" },
+      { "command": "worktreeHub.createWorktree", "title": "New Worktree", "category": "Worktree Hub", "icon": "$(add)" }
     ],
     "menus": {
       "commandPalette": [
@@ -54,13 +57,19 @@
         { "command": "worktreeHub.newAgent", "when": "false" },
         { "command": "worktreeHub.newTerminal", "when": "false" },
         { "command": "worktreeHub.closeTerminal", "when": "false" },
-        { "command": "worktreeHub.revealInFinder", "when": "false" }
+        { "command": "worktreeHub.revealInFinder", "when": "false" },
+        { "command": "worktreeHub.removeProject", "when": "false" }
       ],
       "view/title": [
+        { "command": "worktreeHub.createWorktree", "when": "view == worktreeHub.tree", "group": "navigation@1" },
         { "command": "worktreeHub.refresh", "when": "view == worktreeHub.tree", "group": "navigation@2" },
+        { "command": "worktreeHub.addProject", "when": "view == worktreeHub.tree", "group": "9_setup@1" },
         { "command": "worktreeHub.setupWorkspace", "when": "view == worktreeHub.tree", "group": "9_setup@2" }
       ],
       "view/item/context": [
+        { "command": "worktreeHub.createWorktree", "when": "view == worktreeHub.tree && viewItem == project", "group": "inline@1" },
+        { "command": "worktreeHub.createWorktree", "when": "view == worktreeHub.tree && viewItem == project", "group": "1_create@1" },
+        { "command": "worktreeHub.removeProject", "when": "view == worktreeHub.tree && viewItem == project", "group": "9_remove@1" },
         { "command": "worktreeHub.newAgent", "when": "view == worktreeHub.tree && viewItem =~ /^worktree:(primary|plain|linked)$/", "group": "inline@1" },
         { "command": "worktreeHub.newAgent", "when": "view == worktreeHub.tree && viewItem =~ /^worktree:(primary|plain|linked)$/", "group": "1_terminals@1" },
         { "command": "worktreeHub.newTerminal", "when": "view == worktreeHub.tree && viewItem =~ /^worktree:(primary|plain|linked)$/", "group": "1_terminals@2" },

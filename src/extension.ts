@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { registerSpike } from './spike/spike';
 import { registerAgentCommands } from './vscode/commands/agents';
+import { registerCreateWorktree } from './vscode/commands/createWorktree';
+import { registerProjectCommands } from './vscode/commands/projects';
 import { createHub } from './vscode/hub';
 import { isHubWorkspace, setupWorkspace } from './vscode/workspaceSetup';
 
@@ -21,6 +23,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       getActive: hub.getActive,
       startAgent: hub.startAgent,
     }),
+    ...registerProjectCommands(hub),
+    registerCreateWorktree(hub),
   );
 
   if (context.extensionMode === vscode.ExtensionMode.Development) {
