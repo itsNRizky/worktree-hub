@@ -38,7 +38,30 @@
       { "command": "worktreeHub.spike.terminal", "title": "Open Terminal", "category": "Worktree Hub Spike" },
       { "command": "worktreeHub.spike.show", "title": "Show Terminal", "category": "Worktree Hub Spike" },
       { "command": "worktreeHub.spike.terminals", "title": "List Terminals", "category": "Worktree Hub Spike" }
-    ]
+    ],
+    "configuration": {
+      "title": "Worktree Hub",
+      "properties": {
+        "worktreeHub.projects": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "Git repositories shown in Worktree Hub. Use **Add Project** to add one, then edit `copyFiles` and `defaultBaseBranch` here.",
+          "items": {
+            "type": "object",
+            "required": ["path"],
+            "properties": {
+              "path": { "type": "string", "description": "Path of the main checkout. `~` is allowed." },
+              "defaultBaseBranch": { "type": "string", "description": "Branch pre-selected when creating a worktree, e.g. staging." },
+              "copyFiles": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Files copied from the main checkout into every new worktree, e.g. .env. Existing files are never overwritten."
+              }
+            }
+          }
+        }
+      }
+    }
   },
   "scripts": {
     "build": "node esbuild.mjs",
