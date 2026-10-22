@@ -159,10 +159,15 @@ export async function createHub(context: vscode.ExtensionContext, output: vscode
   context.subscriptions.push({ dispose: () => clearInterval(timer) });
 
   // Reconnect to the terminals VS Code kept alive over a window reload, then draw the tree.
-  await registry.adopt();
-  const known = new Set(registry.records.map((r) => r.id));
-  for (const id of statuses.all().keys()) if (!known.has(id)) statuses.forget(id);
-  void refresh();
+  // Not awaited: activation (and so every command) must not wait for slow terminals.
+  void registry
+    .adopt()
+    .then(() => {
+      const known = new Set(registry.records.map((r) => r.id));
+      for (const id of statuses.all().keys()) if (!known.has(id)) statuses.forget(id);
+    })
+    .catch((e: unknown) => output.appendLine(`Could not reconnect terminals: ${String(e)}`))
+    .finally(() => void refresh());
 
   return {
     context,

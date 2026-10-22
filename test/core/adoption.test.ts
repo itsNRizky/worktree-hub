@@ -10,23 +10,30 @@ const rec = (id: string, processId?: number): TerminalRecord => ({
   processId,
 });
 
+const alive = (...pids: number[]) => (pid: number) => pids.includes(pid);
+
 describe('planAdoption', () => {
   it('keeps a record whose process is still running (window reload)', () => {
     const r = rec('a', 93886);
-    expect(planAdoption([r], [{ processId: 93886 }])).toEqual({ keep: [r], drop: [] });
+    expect(planAdoption([r], [{ processId: 93886 }], alive(93886))).toEqual({ keep: [r], drop: [] });
+  });
+
+  it('keeps a record whose process runs but whose terminal VS Code has not re-attached yet', () => {
+    const r = rec('a', 93886);
+    expect(planAdoption([r], [], alive(93886))).toEqual({ keep: [r], drop: [] });
   });
 
   it('drops a record whose process is gone (VS Code started a new shell after a quit)', () => {
     const r = rec('a', 93886);
-    expect(planAdoption([r], [{ processId: 15642 }])).toEqual({ keep: [], drop: [r] });
+    expect(planAdoption([r], [{ processId: 15642 }], alive(15642))).toEqual({ keep: [], drop: [r] });
   });
 
   it('drops a record without a process id', () => {
     const r = rec('a');
-    expect(planAdoption([r], [{ processId: undefined }])).toEqual({ keep: [], drop: [r] });
+    expect(planAdoption([r], [{ processId: undefined }], alive())).toEqual({ keep: [], drop: [r] });
   });
 
   it('ignores live terminals that match no record', () => {
-    expect(planAdoption([], [{ processId: 1 }, { processId: 2 }])).toEqual({ keep: [], drop: [] });
+    expect(planAdoption([], [{ processId: 1 }, { processId: 2 }], alive(1, 2))).toEqual({ keep: [], drop: [] });
   });
 });

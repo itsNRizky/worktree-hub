@@ -5,18 +5,35 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { planAdoption } from '../core/adoption';
 import type { TerminalRecord } from '../core/agentTypes';
+import { withTimeout } from '../core/async';
 import { terminalName } from '../core/claudeCommand';
 
 const RECORDS_KEY = 'worktreeHub.terminals';
 const HAD_AGENT_KEY = 'worktreeHub.hadAgent';
 const LAST_KEY = 'worktreeHub.lastTerminal';
+/** A terminal's process ID normally arrives at once; a stuck terminal must not block us. */
+const PID_TIMEOUT_MS = 3_000;
+/** How long a kept record may wait for VS Code to re-attach its terminal after a reload. */
+const REATTACH_GRACE_MS = 30_000;
 
 type LastFocus = Record<string, { id: string; at: number }>;
+
+/** True while a process runs. `kill(pid, 0)` sends no signal; it only checks the process exists. */
+function processAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    // EPERM: the process exists but belongs to someone else.
+    return (e as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
 
 export class TerminalRegistry implements vscode.Disposable {
   /** Terminal objects only exist while the window lives; records survive a reload. */
   private readonly live = new Map<string, vscode.Terminal>();
   private readonly subs: vscode.Disposable[] = [];
+  private graceTimer: NodeJS.Timeout | undefined;
 
   constructor(
     private readonly state: vscode.Memento,
@@ -25,6 +42,16 @@ export class TerminalRegistry implements vscode.Disposable {
     private readonly onRemoved: (ids: string[]) => void = () => undefined,
   ) {
     this.subs.push(
+      // A terminal VS Code re-attaches after a reload: link it to its record by process ID.
+      vscode.window.onDidOpenTerminal(async (t) => {
+        const pid = await withTimeout(t.processId, PID_TIMEOUT_MS, undefined);
+        if (pid === undefined) return;
+        const rec = this.records.find((r) => r.processId === pid && !this.live.has(r.id));
+        if (rec) {
+          this.live.set(rec.id, t);
+          this.onChange();
+        }
+      }),
       vscode.window.onDidCloseTerminal((t) => {
         const id = this.idOf(t);
         if (id) this.remove([id]);
@@ -82,7 +109,8 @@ export class TerminalRegistry implements vscode.Disposable {
     const name = this.nextName(kind, worktreePath);
     const terminal = vscode.window.createTerminal({ name, cwd: worktreePath, ...extra });
     this.live.set(id, terminal);
-    const record: TerminalRecord = { id, kind, worktreePath, name, processId: await terminal.processId };
+    const processId = await withTimeout(terminal.processId, PID_TIMEOUT_MS, undefined);
+    const record: TerminalRecord = { id, kind, worktreePath, name, processId };
     this.save([...this.records, record]);
     return { record, terminal };
   }
@@ -163,18 +191,29 @@ export class TerminalRegistry implements vscode.Disposable {
   /** Run once at activation: reconnect stored records to the terminals VS Code restored. */
   async adopt(): Promise<void> {
     const live = await Promise.all(
-      vscode.window.terminals.map(async (terminal) => ({ terminal, processId: await terminal.processId })),
+      vscode.window.terminals.map(async (terminal) => ({
+        terminal,
+        processId: await withTimeout(terminal.processId, PID_TIMEOUT_MS, undefined),
+      })),
     );
-    const { keep, drop } = planAdoption(this.records, live);
+    const { keep, drop } = planAdoption(this.records, live, processAlive);
     for (const rec of keep) {
       const match = live.find((l) => l.processId === rec.processId);
       if (match) this.live.set(rec.id, match.terminal);
     }
     this.save(keep);
     if (drop.length) this.onRemoved(drop.map((r) => r.id));
+
+    // A kept record whose terminal never re-attaches (its process ID was reused by an unrelated
+    // program after a quit) is dropped after a grace period.
+    this.graceTimer = setTimeout(() => {
+      const orphans = this.records.filter((r) => !this.live.has(r.id)).map((r) => r.id);
+      if (orphans.length) this.remove(orphans);
+    }, REATTACH_GRACE_MS);
   }
 
   dispose(): void {
+    clearTimeout(this.graceTimer);
     for (const s of this.subs) s.dispose();
   }
 }
