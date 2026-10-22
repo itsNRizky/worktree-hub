@@ -4,7 +4,9 @@ import { registerAgentCommands } from './vscode/commands/agents';
 import { registerCreateWorktree } from './vscode/commands/createWorktree';
 import { registerLinkCommands } from './vscode/commands/link';
 import { registerProjectCommands } from './vscode/commands/projects';
+import { registerQuickSwitch } from './vscode/commands/quickSwitch';
 import { registerRemoveWorktree } from './vscode/commands/removeWorktree';
+import { registerStatusBar } from './vscode/statusBar';
 import { createHub } from './vscode/hub';
 import { isHubWorkspace, setupWorkspace } from './vscode/workspaceSetup';
 
@@ -29,6 +31,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerCreateWorktree(hub),
     ...registerLinkCommands(hub),
     registerRemoveWorktree(hub),
+    registerQuickSwitch(hub),
+    registerStatusBar(hub),
   );
 
   if (context.extensionMode === vscode.ExtensionMode.Development) {

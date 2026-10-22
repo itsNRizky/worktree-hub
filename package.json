@@ -51,7 +51,8 @@
       { "command": "worktreeHub.createWorktree", "title": "New Worktree", "category": "Worktree Hub", "icon": "$(add)" },
       { "command": "worktreeHub.link", "title": "Link to Another Repo…", "category": "Worktree Hub", "icon": "$(link)" },
       { "command": "worktreeHub.unlink", "title": "Unlink", "category": "Worktree Hub" },
-      { "command": "worktreeHub.removeWorktree", "title": "Remove Worktree…", "category": "Worktree Hub" }
+      { "command": "worktreeHub.removeWorktree", "title": "Remove Worktree…", "category": "Worktree Hub" },
+      { "command": "worktreeHub.quickSwitch", "title": "Switch to Worktree…", "category": "Worktree Hub" }
     ],
     "menus": {
       "commandPalette": [
