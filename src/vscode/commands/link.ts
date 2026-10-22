@@ -14,11 +14,12 @@ import { guarded, worktreePathOf } from '../ui';
 import { confirmExistingBranch, createCheckDeps, pickBaseBranch } from './createWorktree';
 
 export function registerLinkCommands(hub: Hub): vscode.Disposable[] {
-  /** Makes the folders and the active task match the (new) group, if that task is on screen. */
-  const syncActive = async (group: string[], wasActive: boolean) => {
-    if (!wasActive) return;
-    await hub.folders.setTaskFolders(group);
-    await hub.setActive(group);
+  /**
+   * If the task was on screen, open it again with its new group. Going through the switcher keeps
+   * the switch queue in order and saves/closes the tabs of a worktree that leaves the window.
+   */
+  const reopen = async (worktreePath: string, wasActive: boolean) => {
+    if (wasActive) await hub.switcher.switchTo(worktreePath, { userInitiated: false });
   };
 
   return [
@@ -82,7 +83,7 @@ export function registerLinkCommands(hub: Hub): vscode.Disposable[] {
         const wasActive = hub.getActive().includes(source);
         await hub.links.link(source, targetPath);
         await hub.refresh();
-        await syncActive(hub.links.groupOf(source), wasActive);
+        await reopen(source, wasActive);
 
         // Agents that are already running were started without the new folder.
         const running = hub.registry
@@ -117,7 +118,7 @@ export function registerLinkCommands(hub: Hub): vscode.Disposable[] {
         await hub.links.unlink(p);
         // Keep showing the rest of the task; if only this worktree was shown, keep showing it.
         const stay = active.find((x) => x !== p) ?? p;
-        await syncActive(hub.links.groupOf(stay), wasActive);
+        await reopen(stay, wasActive);
         hub.render();
         void vscode.window.showInformationMessage(`Unlinked ${path.basename(p)}. Files and terminals are not touched.`);
       }),

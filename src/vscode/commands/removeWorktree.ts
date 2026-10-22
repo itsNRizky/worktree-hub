@@ -62,13 +62,15 @@ export function registerRemoveWorktree(hub: Hub): vscode.Disposable {
       if (choice !== 'Remove' && choice !== 'Remove and open in main') return;
       const paths = entries.map((e) => e.worktree.path);
 
-      // Move the window away first, so the folders are not open while they are deleted.
+      // First stop the agents and drop unsaved edits (the user confirmed), so the switch below has
+      // nothing to save into folders that are about to be deleted.
+      hub.registry.disposeForWorktrees(paths);
+      await discardAndCloseTabs(paths);
+      // Then move the window away, so the folders are not open while they are deleted.
       if (hub.getActive().some((p) => paths.includes(p))) {
         const primary = found.project.worktrees.find((w) => w.isPrimary);
         await hub.switcher.switchTo(primary?.path ?? null, { userInitiated: false });
       }
-      hub.registry.disposeForWorktrees(paths);
-      await discardAndCloseTabs(paths);
       await hub.deleteTabs(paths);
 
       const errors: string[] = [];
