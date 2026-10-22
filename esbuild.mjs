@@ -3,10 +3,13 @@
 //   node esbuild.mjs --watch       rebuild on every change
 //   node esbuild.mjs --production  minified build for the .vsix
 import { context } from 'esbuild';
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
+
+// A release build starts from an empty dist/, so old source maps do not end up in the .vsix.
+if (production) rmSync('dist', { recursive: true, force: true });
 
 // Two separate bundles:
 // - extension.js runs inside VS Code.

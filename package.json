@@ -34,10 +34,6 @@
       ]
     },
     "commands": [
-      { "command": "worktreeHub.spike.setFolder", "title": "Set Folder", "category": "Worktree Hub Spike" },
-      { "command": "worktreeHub.spike.terminal", "title": "Open Terminal", "category": "Worktree Hub Spike" },
-      { "command": "worktreeHub.spike.show", "title": "Show Terminal", "category": "Worktree Hub Spike" },
-      { "command": "worktreeHub.spike.terminals", "title": "List Terminals", "category": "Worktree Hub Spike" },
       { "command": "worktreeHub.refresh", "title": "Refresh", "category": "Worktree Hub", "icon": "$(refresh)" },
       { "command": "worktreeHub.setupWorkspace", "title": "Set Up Workspace", "category": "Worktree Hub" },
       { "command": "worktreeHub.switch", "title": "Switch to Worktree", "category": "Worktree Hub" },

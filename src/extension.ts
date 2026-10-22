@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { registerSpike } from './spike/spike';
 import { registerAgentCommands } from './vscode/commands/agents';
 import { registerCreateWorktree } from './vscode/commands/createWorktree';
 import { registerLinkCommands } from './vscode/commands/link';
@@ -34,10 +33,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerQuickSwitch(hub),
     registerStatusBar(hub),
   );
-
-  if (context.extensionMode === vscode.ExtensionMode.Development) {
-    registerSpike(context, output);
-  }
 }
 
 export function deactivate(): void {}
