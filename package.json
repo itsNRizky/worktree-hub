@@ -32,7 +32,13 @@
           "name": "Worktrees"
         }
       ]
-    }
+    },
+    "commands": [
+      { "command": "worktreeHub.spike.setFolder", "title": "Set Folder", "category": "Worktree Hub Spike" },
+      { "command": "worktreeHub.spike.terminal", "title": "Open Terminal", "category": "Worktree Hub Spike" },
+      { "command": "worktreeHub.spike.show", "title": "Show Terminal", "category": "Worktree Hub Spike" },
+      { "command": "worktreeHub.spike.terminals", "title": "List Terminals", "category": "Worktree Hub Spike" }
+    ]
   },
   "scripts": {
     "build": "node esbuild.mjs",
