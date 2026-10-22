@@ -39,12 +39,34 @@
       { "command": "worktreeHub.spike.show", "title": "Show Terminal", "category": "Worktree Hub Spike" },
       { "command": "worktreeHub.spike.terminals", "title": "List Terminals", "category": "Worktree Hub Spike" },
       { "command": "worktreeHub.refresh", "title": "Refresh", "category": "Worktree Hub", "icon": "$(refresh)" },
-      { "command": "worktreeHub.setupWorkspace", "title": "Set Up Workspace", "category": "Worktree Hub" }
+      { "command": "worktreeHub.setupWorkspace", "title": "Set Up Workspace", "category": "Worktree Hub" },
+      { "command": "worktreeHub.switch", "title": "Switch to Worktree", "category": "Worktree Hub" },
+      { "command": "worktreeHub.focusTerminal", "title": "Show Terminal", "category": "Worktree Hub" },
+      { "command": "worktreeHub.newAgent", "title": "New Agent", "category": "Worktree Hub", "icon": "$(add)" },
+      { "command": "worktreeHub.newTerminal", "title": "New Terminal", "category": "Worktree Hub", "icon": "$(terminal)" },
+      { "command": "worktreeHub.closeTerminal", "title": "Close", "category": "Worktree Hub", "icon": "$(close)" },
+      { "command": "worktreeHub.revealInFinder", "title": "Reveal in Finder", "category": "Worktree Hub" }
     ],
     "menus": {
+      "commandPalette": [
+        { "command": "worktreeHub.switch", "when": "false" },
+        { "command": "worktreeHub.focusTerminal", "when": "false" },
+        { "command": "worktreeHub.newAgent", "when": "false" },
+        { "command": "worktreeHub.newTerminal", "when": "false" },
+        { "command": "worktreeHub.closeTerminal", "when": "false" },
+        { "command": "worktreeHub.revealInFinder", "when": "false" }
+      ],
       "view/title": [
         { "command": "worktreeHub.refresh", "when": "view == worktreeHub.tree", "group": "navigation@2" },
         { "command": "worktreeHub.setupWorkspace", "when": "view == worktreeHub.tree", "group": "9_setup@2" }
+      ],
+      "view/item/context": [
+        { "command": "worktreeHub.newAgent", "when": "view == worktreeHub.tree && viewItem =~ /^worktree:(primary|plain|linked)$/", "group": "inline@1" },
+        { "command": "worktreeHub.newAgent", "when": "view == worktreeHub.tree && viewItem =~ /^worktree:(primary|plain|linked)$/", "group": "1_terminals@1" },
+        { "command": "worktreeHub.newTerminal", "when": "view == worktreeHub.tree && viewItem =~ /^worktree:(primary|plain|linked)$/", "group": "1_terminals@2" },
+        { "command": "worktreeHub.revealInFinder", "when": "view == worktreeHub.tree && viewItem =~ /^worktree:(primary|plain|linked)$/", "group": "8_misc@1" },
+        { "command": "worktreeHub.closeTerminal", "when": "view == worktreeHub.tree && viewItem =~ /^(agent|shell)$/", "group": "inline@1" },
+        { "command": "worktreeHub.closeTerminal", "when": "view == worktreeHub.tree && viewItem =~ /^(agent|shell)$/", "group": "1_terminal@1" }
       ]
     },
     "viewsWelcome": [

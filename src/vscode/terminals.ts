@@ -21,6 +21,8 @@ export class TerminalRegistry implements vscode.Disposable {
   constructor(
     private readonly state: vscode.Memento,
     private readonly onChange: () => void,
+    /** Called with the ids of records that went away, e.g. to delete their status files. */
+    private readonly onRemoved: (ids: string[]) => void = () => undefined,
   ) {
     this.subs.push(
       vscode.window.onDidCloseTerminal((t) => {
@@ -55,6 +57,7 @@ export class TerminalRegistry implements vscode.Disposable {
   private remove(ids: string[]): void {
     for (const id of ids) this.live.delete(id);
     this.save(this.records.filter((r) => !ids.includes(r.id)));
+    if (ids.length) this.onRemoved(ids);
   }
 
   forWorktrees(paths: string[]): TerminalRecord[] {
@@ -154,12 +157,13 @@ export class TerminalRegistry implements vscode.Disposable {
     const live = await Promise.all(
       vscode.window.terminals.map(async (terminal) => ({ terminal, processId: await terminal.processId })),
     );
-    const { keep } = planAdoption(this.records, live);
+    const { keep, drop } = planAdoption(this.records, live);
     for (const rec of keep) {
       const match = live.find((l) => l.processId === rec.processId);
       if (match) this.live.set(rec.id, match.terminal);
     }
     this.save(keep);
+    if (drop.length) this.onRemoved(drop.map((r) => r.id));
   }
 
   dispose(): void {
