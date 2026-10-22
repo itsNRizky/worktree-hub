@@ -135,6 +135,14 @@ export class TerminalRegistry implements vscode.Disposable {
     return best?.rec ?? candidates[candidates.length - 1];
   }
 
+  /** Types a line into a terminal and presses Enter. False when the terminal is gone. */
+  sendText(id: string, text: string): boolean {
+    const terminal = this.live.get(id);
+    if (!terminal) return false;
+    terminal.sendText(text, true);
+    return true;
+  }
+
   close(id: string): void {
     const terminal = this.live.get(id);
     if (terminal) terminal.dispose();
