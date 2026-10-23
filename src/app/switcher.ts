@@ -16,8 +16,12 @@ export interface SwitchPorts {
   startAgent(path: string): Promise<void>;
   /** Opens a plain shell in the worktree. Nothing is typed into it. */
   startShell(path: string): Promise<void>;
-  /** Makes VS Code's own Git status show this worktree (see src/core/gitNudge.ts). */
-  pointGitAt(path: string): Promise<void>;
+  /**
+   * Keeps VS Code's own Git (Source Control view, bottom-left branch) in step with the switch:
+   * close the repos of worktrees that `left`, open those that `arrived`, and, when `nudge` is set,
+   * make VS Code's status show that worktree (see src/core/gitNudge.ts).
+   */
+  syncGit(change: { left: string[]; arrived: string[]; nudge?: string }): Promise<void>;
   reveal(path: string): Promise<void>;
   isMissing(path: string): boolean;
 }
@@ -69,11 +73,16 @@ export class Switcher {
       // Record the new task as soon as its folders are open: if a later step fails, the next switch
       // must save B's tabs, not overwrite A's remembered tabs with an empty list.
       await p.setActive(target);
-      if (path === null) return;
+      const left = active.filter((w) => !target.includes(w));
+      const arrived = target.filter((w) => !active.includes(w));
+      if (path === null) {
+        await p.syncGit({ left, arrived });
+        return;
+      }
       const tabs = target.flatMap((w) => p.loadTabs(w));
       await p.restoreTabs(tabs);
       // A restored file already makes VS Code's Git follow; without one, it would keep the old repo.
-      if (tabs.length === 0) await p.pointGitAt(path);
+      await p.syncGit({ left, arrived, nudge: tabs.length === 0 ? path : undefined });
     }
     if (path === null) return;
 

@@ -50,8 +50,8 @@ function fake(o: FakeOptions = {}) {
     startShell: async (p) => {
       calls.push(`startShell(${p})`);
     },
-    pointGitAt: async (p) => {
-      calls.push(`pointGitAt(${p})`);
+    syncGit: async (g) => {
+      calls.push(`syncGit(left=${g.left.join(',')} arrived=${g.arrived.join(',')} nudge=${g.nudge ?? ''})`);
     },
     reveal: async (p) => {
       calls.push(`reveal(${p})`);
@@ -73,22 +73,30 @@ describe('Switcher', () => {
       'setFolders(B)',
       'setActive(B)',
       'restoreTabs(B/x.ts)',
+      'syncGit(left=A arrived=B nudge=)',
       'reveal(B)',
       'showLastTerminal(B)',
     ]);
   });
 
-  it('points VS Code Git at the new worktree when no tabs come back, before revealing it', async () => {
+  it('tells VS Code Git which worktree left and which arrived, and nudges it when no tabs come back', async () => {
     const { ports, calls } = fake();
     await new Switcher(ports, solo).switchTo('B', { userInitiated: true });
-    expect(calls.indexOf('pointGitAt(B)')).toBe(calls.indexOf('restoreTabs()') + 1);
-    expect(calls.indexOf('pointGitAt(B)')).toBeLessThan(calls.indexOf('reveal(B)'));
+    const i = calls.indexOf('syncGit(left=A arrived=B nudge=B)');
+    expect(i).toBe(calls.indexOf('restoreTabs()') + 1);
+    expect(i).toBeLessThan(calls.indexOf('reveal(B)'));
   });
 
-  it('does not point VS Code Git anywhere when tabs come back (the open file already does it)', async () => {
+  it('does not nudge VS Code Git when tabs come back (the open file already does it)', async () => {
     const { ports, calls } = fake({ tabs: { B: [tab('B/x.ts')] } });
     await new Switcher(ports, solo).switchTo('B', { userInitiated: true });
-    expect(calls.some((c) => c.startsWith('pointGitAt'))).toBe(false);
+    expect(calls).toContain('syncGit(left=A arrived=B nudge=)');
+  });
+
+  it('reports only the new member when a linked worktree joins the task on screen', async () => {
+    const { ports, calls } = fake({ active: ['A'] });
+    await new Switcher(ports, () => ['A', 'B']).switchTo('A', { userInitiated: false });
+    expect(calls).toContain('syncGit(left= arrived=B nudge=A)');
   });
 
   it('records the new task right after the folder swap, so a later failure cannot leave it stale', async () => {
@@ -172,7 +180,13 @@ describe('Switcher', () => {
   it('switching to nothing closes the task and leaves only the hub', async () => {
     const { ports, calls } = fake();
     await new Switcher(ports, solo).switchTo(null, { userInitiated: false });
-    expect(calls).toEqual(['saveAndCloseTabs(A)', 'storeTabs(A)', 'setFolders()', 'setActive()']);
+    expect(calls).toEqual([
+      'saveAndCloseTabs(A)',
+      'storeTabs(A)',
+      'setFolders()',
+      'setActive()',
+      'syncGit(left=A arrived= nudge=)',
+    ]);
   });
 
   it('runs two switches one after the other, never mixed', async () => {

@@ -12,7 +12,7 @@ import { ensureHookSettings, statusDirOf, StatusWatcher } from './agentStatus';
 import { onProjectsChanged, readProjects } from './config';
 import { restoreTabs, saveAndCloseTabs } from './editorTabs';
 import { FolderSwapper } from './folderSwapper';
-import { pointGitAt } from './gitNudge';
+import { syncGit } from './gitNudge';
 import { TerminalRegistry } from './terminals';
 import { WorktreeTreeProvider } from './treeProvider';
 import { isHubWorkspace } from './workspaceSetup';
@@ -146,7 +146,7 @@ export async function createHub(context: vscode.ExtensionContext, output: vscode
     startShell: async (p: string) => {
       await registry.createShell(p);
     },
-    pointGitAt,
+    syncGit: (change) => syncGit(change, (line) => output.appendLine(line)),
     reveal: async (p: string) => {
       await vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(p));
     },
@@ -172,7 +172,17 @@ export async function createHub(context: vscode.ExtensionContext, output: vscode
       for (const id of statuses.all().keys()) if (!known.has(id)) statuses.forget(id);
     })
     .catch((e: unknown) => output.appendLine(`Could not reconnect terminals: ${String(e)}`))
-    .finally(() => void refresh());
+    .finally(async () => {
+      await refresh();
+      // Tidy VS Code's Source Control view once at startup: only the task on screen stays open.
+      if (!isHubWorkspace()) return;
+      const active = getActive();
+      const others = snapshot.projects
+        .flatMap((p) => p.worktrees)
+        .filter((w) => !w.missing && !active.includes(w.path))
+        .map((w) => w.path);
+      await syncGit({ left: others, arrived: active }, (line) => output.appendLine(line));
+    });
 
   return {
     context,
