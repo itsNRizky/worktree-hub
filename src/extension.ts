@@ -23,7 +23,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       registry: hub.registry,
       statuses: hub.statuses,
       switcher: hub.switcher,
-      getActive: hub.getActive,
       startAgent: hub.startAgent,
     }),
     ...registerProjectCommands(hub),

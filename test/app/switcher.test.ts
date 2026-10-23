@@ -6,8 +6,8 @@ const tab = (uri: string): TabRecord => ({ uri, viewColumn: 1, active: false });
 
 interface FakeOptions {
   active?: string[];
-  hasTerminal?: boolean;
-  hadAgent?: boolean;
+  hasTerminal?: boolean | string[];
+  hadAgent?: boolean | string[];
   missing?: string[];
   tabs?: Record<string, TabRecord[]>;
 }
@@ -41,9 +41,9 @@ function fake(o: FakeOptions = {}) {
     },
     showLastTerminal: (p) => {
       calls.push(`showLastTerminal(${p.join(',')})`);
-      return o.hasTerminal ?? true;
+      return Array.isArray(o.hasTerminal) ? p.some((w) => (o.hasTerminal as string[]).includes(w)) : (o.hasTerminal ?? true);
     },
-    hasEverHadAgent: () => o.hadAgent ?? true,
+    hasEverHadAgent: (w) => (Array.isArray(o.hadAgent) ? o.hadAgent.includes(w) : (o.hadAgent ?? true)),
     startAgent: async (p) => {
       calls.push(`startAgent(${p})`);
     },
@@ -120,6 +120,27 @@ describe('Switcher', () => {
     await new Switcher(ports, () => ['B', 'B2']).switchTo('B', { userInitiated: true });
     expect(calls).toContain('setFolders(B,B2)');
     expect(calls).toContain('restoreTabs(B/1.ts,B2/2.ts)');
+  });
+
+  it('puts the clicked worktree first and shows only its own terminal', async () => {
+    const { ports, calls } = fake();
+    await new Switcher(ports, () => ['B', 'B2']).switchTo('B2', { userInitiated: true });
+    expect(calls).toContain('setFolders(B2,B)');
+    expect(calls).toContain('setActive(B2,B)');
+    expect(calls).toContain('showLastTerminal(B2)');
+  });
+
+  it('moves the focus inside a linked task without touching folders or tabs', async () => {
+    const { ports, calls } = fake({ active: ['A', 'B'], hasTerminal: ['B'] });
+    await new Switcher(ports, () => ['A', 'B']).switchTo('B', { userInitiated: true });
+    expect(calls).toEqual(['setActive(B,A)', 'syncGit(left= arrived= nudge=B)', 'reveal(B)', 'showLastTerminal(B)']);
+  });
+
+  it('opens a shell, not a second agent, in a linked worktree when the task already had an agent', async () => {
+    const { ports, calls } = fake({ active: ['A', 'B'], hasTerminal: ['A'], hadAgent: ['A'] });
+    await new Switcher(ports, () => ['A', 'B']).switchTo('B', { userInitiated: true });
+    expect(calls).not.toContain('startAgent(B)');
+    expect(calls.at(-1)).toBe('startShell(B)');
   });
 
   it('leaves out a linked worktree whose folder is missing', async () => {

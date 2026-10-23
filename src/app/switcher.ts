@@ -58,10 +58,18 @@ export class Switcher {
     const p = this.ports;
     if (path !== null && p.isMissing(path)) throw new Error(`The worktree folder is missing: ${path}`);
 
-    const target = path === null ? [] : this.groupOf(path).filter((w) => w === path || !p.isMissing(w));
+    // The clicked worktree goes first: it is the task's focus (status bar, VS Code's Git, terminal).
+    const target =
+      path === null ? [] : [path, ...this.groupOf(path).filter((w) => w !== path && !p.isMissing(w))];
     const active = p.getActive();
     const sameTask = path !== null && active.length === target.length && target.every((w) => active.includes(w));
 
+    if (sameTask && active[0] !== path) {
+      // Another row of the linked task on screen: its folders and tabs are already open, only the
+      // focus moves to the clicked worktree.
+      await p.setActive(target);
+      await p.syncGit({ left: [], arrived: [], nudge: path! });
+    }
     if (!sameTask) {
       // Order matters: the old tabs must be captured and closed while their folders are still in
       // the workspace, and the new tabs can only be opened once the new folders are there.
@@ -89,10 +97,13 @@ export class Switcher {
     // Reveal before the terminal: revealing moves focus to the Explorer, and the terminal (or a new
     // agent) should end up with the focus, ready for typing.
     await p.reveal(path);
-    if (p.showLastTerminal(target) || opts.terminal === 'none') return;
-    // No terminal in this task. Without one, the previous task's terminal would stay on screen and
-    // look like it belongs here.
-    if (opts.userInitiated && !p.hasEverHadAgent(path)) await p.startAgent(path);
+    // Only the clicked worktree's own terminals: in a linked task, clicking the backend row must not
+    // show the frontend's agent.
+    if (opts.terminal === 'none' || p.showLastTerminal([path])) return;
+    // No terminal here. Without one, the previous terminal would stay on screen and look like it
+    // belongs here. A first agent starts only if the whole task never had one; a linked task's
+    // existing agent already reaches this folder through --add-dir.
+    if (opts.userInitiated && !target.some((w) => p.hasEverHadAgent(w))) await p.startAgent(path);
     else await p.startShell(path);
   }
 }

@@ -10,7 +10,6 @@ export interface AgentCommandDeps {
   registry: TerminalRegistry;
   statuses: StatusWatcher;
   switcher: Switcher;
-  getActive(): string[];
   startAgent(worktreePath: string): Promise<void>;
 }
 
@@ -18,13 +17,11 @@ export function registerAgentCommands(deps: AgentCommandDeps): vscode.Disposable
   const { registry, statuses, switcher } = deps;
 
   /**
-   * Makes the worktree's task active first, if it is not already. `terminal: 'none'` because every
-   * caller shows or creates a terminal right after; an extra shell would only be in the way.
+   * Makes the worktree's task active and the worktree its focus (cheap when it already is).
+   * `terminal: 'none'` because every caller shows or creates a terminal right after.
    */
   const ensureActive = async (worktreePath: string) => {
-    if (!deps.getActive().includes(worktreePath)) {
-      await switcher.switchTo(worktreePath, { userInitiated: false, terminal: 'none' });
-    }
+    await switcher.switchTo(worktreePath, { userInitiated: false, terminal: 'none' });
   };
 
   return [
