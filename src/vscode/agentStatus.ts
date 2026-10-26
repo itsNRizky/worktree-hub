@@ -48,6 +48,8 @@ export class StatusWatcher implements vscode.Disposable {
   constructor(
     private readonly statusDir: vscode.Uri,
     private readonly onChange: () => void,
+    /** Called for each status read after startup, with the state it had before (for popups). */
+    private readonly onStatus: (next: AgentStatus, prev: AgentStatus | undefined) => void = () => undefined,
   ) {
     fs.mkdirSync(statusDir.fsPath, { recursive: true });
     for (const name of fs.readdirSync(statusDir.fsPath)) {
@@ -74,8 +76,12 @@ export class StatusWatcher implements vscode.Disposable {
           // No transcript yet: keep the title from the first prompt.
         }
       }
+      const prev = this.statuses.get(status.agentId);
       this.statuses.set(status.agentId, status);
-      if (notify) this.onChange();
+      if (notify) {
+        this.onChange();
+        this.onStatus(status, prev);
+      }
     } catch {
       // Ignore a file we cannot read; the next event brings a full one.
     }

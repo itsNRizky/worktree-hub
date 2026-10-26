@@ -1,8 +1,11 @@
 // Builds and connects the extension's parts. Commands receive this `Hub` object.
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { findWorktree, loadSnapshot, type Snapshot } from '../app/repository';
 import { Switcher, type SwitchPorts } from '../app/switcher';
+import type { AgentStatus } from '../core/agentTypes';
+import { attentionFor, attentionMessage } from '../core/attention';
 import { buildClaudeCommand } from '../core/claudeCommand';
 import { LinkStore } from '../core/links';
 import type { TabRecord } from '../core/tabs';
@@ -64,7 +67,7 @@ export async function createHub(context: vscode.ExtensionContext, output: vscode
   const getActive = () => state.get<string[]>(ACTIVE_KEY, []);
 
   // Created before `render` exists, so they call it through these small arrows.
-  const statuses = new StatusWatcher(statusDirOf(context), () => render());
+  const statuses = new StatusWatcher(statusDirOf(context), () => render(), (next, prev) => popUp(next, prev));
   const registry = new TerminalRegistry(
     state,
     () => render(),
@@ -109,6 +112,26 @@ export async function createHub(context: vscode.ExtensionContext, output: vscode
         running = undefined;
       });
     return running;
+  };
+
+  /** A bottom-right popup when an agent finishes or needs an answer, so it is not missed. */
+  const popUp = (next: AgentStatus, prev: AgentStatus | undefined) => {
+    const kind = attentionFor(prev?.state, next.state);
+    const rec = kind && registry.records.find((r) => r.id === next.agentId);
+    if (!kind || !rec) return;
+    // The user already sees this agent: its terminal is the active one in the focused window.
+    if (vscode.window.state.focused && registry.isActive(rec.id)) return;
+    const found = findWorktree(snapshot, rec.worktreePath);
+    const text = attentionMessage(
+      kind,
+      found?.project.name ?? path.basename(path.dirname(rec.worktreePath)),
+      found?.worktree.branch ?? path.basename(rec.worktreePath),
+    );
+    const shown =
+      kind === 'waiting' ? vscode.window.showWarningMessage(text, 'Show') : vscode.window.showInformationMessage(text, 'Show');
+    void shown.then((choice) => {
+      if (choice === 'Show') void vscode.commands.executeCommand('worktreeHub.focusTerminal', rec.id);
+    });
   };
 
   const startAgent = async (worktreePath: string) => {

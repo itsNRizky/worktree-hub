@@ -149,6 +149,12 @@ export class TerminalRegistry implements vscode.Disposable {
     return true;
   }
 
+  /** True when this record's terminal is VS Code's active terminal. */
+  isActive(id: string): boolean {
+    const terminal = this.live.get(id);
+    return !!terminal && vscode.window.activeTerminal === terminal;
+  }
+
   /** The terminal of these worktrees that the user focused last (or the newest one). */
   lastFocused(paths: string[]): TerminalRecord | undefined {
     const candidates = this.forWorktrees(paths).filter((r) => this.live.has(r.id));
