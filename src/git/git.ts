@@ -124,6 +124,28 @@ export async function fetchPrune(repo: string): Promise<void> {
 }
 
 /**
+ * The ref a new branch should start from. A local base such as `staging` is often older than
+ * `origin/staging`, so the remote copy wins when the local branch is only behind it (or equal).
+ * A local branch with commits the remote does not have is kept, so those commits are not lost.
+ * It only compares refs: run `fetchPrune` first.
+ */
+export async function freshestBase(repo: string, base: string): Promise<{ ref: string; note?: string }> {
+  if (!(await branchExists(repo, base))) return { ref: base };
+  const tracked = (await runGit(['for-each-ref', '--format=%(upstream)', `refs/heads/${base}`], repo)).trim();
+  let remote: string | undefined;
+  // The tracked branch first; it can be gone (deleted on the remote), so check that it exists.
+  for (const ref of [tracked, `refs/remotes/origin/${base}`]) {
+    if (ref.startsWith('refs/remotes/') && (await succeeds(['show-ref', '--verify', '--quiet', ref], repo))) {
+      remote = ref.slice('refs/remotes/'.length);
+      break;
+    }
+  }
+  if (!remote) return { ref: base };
+  if (await succeeds(['merge-base', '--is-ancestor', base, remote], repo)) return { ref: remote };
+  return { ref: base, note: `${base} has commits that are not on ${remote}` };
+}
+
+/**
  * `--no-track` matters: without it, a branch made from `origin/staging` would track
  * `origin/staging`, and a later `git push` could go to staging.
  */

@@ -1,7 +1,9 @@
 // New Worktree: step 1 asks for a name (used for the branch and the folder), step 2 for the base
-// branch. Then: git worktree add → copy the listed files → switch to it (which starts one agent).
+// branch. Then: wait for git fetch → git worktree add from the latest base → copy the listed files
+// → switch to it (which starts one agent).
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
+import { withTimeout } from '../../core/async';
 import { checkNewWorktree, orderBaseBranches, type CreateCheckDeps } from '../../core/createCheck';
 import type { ProjectConfig } from '../../core/projects';
 import type { ProjectNode } from '../../core/treeModel';
@@ -34,13 +36,52 @@ export async function confirmExistingBranch(name: string): Promise<boolean> {
   return choice === 'Use Existing Branch';
 }
 
-/** Step "base branch": shows local branches at once and refreshes the list after `git fetch`. */
+const FETCH_TIMEOUT_MS = 30_000;
+
+/** A `git fetch` that runs at most once per dialog. Resolves to true when it worked. */
+export type Fetch = () => Promise<boolean>;
+
+export function fetchOnce(repo: string, log: (line: string) => void): Fetch {
+  let run: Promise<boolean> | undefined;
+  return () =>
+    (run ??= git.fetchPrune(repo).then(
+      () => true,
+      (e: unknown) => {
+        log(`fetch failed in ${repo}: ${String(e)}`);
+        return false;
+      },
+    ));
+}
+
+/**
+ * Creates the worktree on a new branch from the latest copy of `base`: it waits for the fetch, then
+ * starts from origin's copy when the local branch is behind it. Returns what to tell the user, and
+ * whether it is a warning (the start point may be old).
+ */
+export async function addFromLatestBase(
+  repo: string,
+  folder: string,
+  name: string,
+  base: string,
+  fetch: Fetch,
+): Promise<{ text: string; warn: boolean }> {
+  const fetched = await withTimeout(fetch(), FETCH_TIMEOUT_MS, false);
+  const from = await git.freshestBase(repo, base);
+  await git.addWorktreeNewBranch(repo, folder, name, from.ref);
+  const lines = [`Started from ${from.ref}.`];
+  if (!fetched) lines.push('Could not get the latest from the remote, so it may be old.');
+  if (from.note) lines.push(`${from.note}, so the local branch was used.`);
+  return { text: lines.join(' '), warn: !fetched || !!from.note };
+}
+
+/** Step "base branch": shows the known branches at once and refreshes the list after the fetch. */
 export async function pickBaseBranch(
   repo: string,
   preferredSetting: string | undefined,
   title: string,
   step: number,
   totalSteps: number,
+  fetch: Fetch,
 ): Promise<string | typeof BACK | undefined> {
   const preferred = preferredSetting ?? (await git.remoteDefaultBranch(repo));
   const items = orderBaseBranches(await git.listBranches(repo), preferred);
@@ -51,7 +92,7 @@ export async function pickBaseBranch(
     placeholder: 'Base branch for the new branch',
     items,
     refresh: async () => {
-      await git.fetchPrune(repo);
+      await fetch();
       return orderBaseBranches(await git.listBranches(repo), preferred);
     },
   });
@@ -78,6 +119,7 @@ export function registerCreateWorktree(hub: Hub): vscode.Disposable {
       const repo = project.path;
       const deps = createCheckDeps(repo);
       const title = `New Worktree · ${repo.split('/').pop()}`;
+      const fetch = fetchOnce(repo, (line) => hub.output.appendLine(line));
 
       let name = '';
       let base: string | undefined;
@@ -107,22 +149,24 @@ export function registerCreateWorktree(hub: Hub): vscode.Disposable {
           useExisting = true;
           break;
         }
-        const picked = await pickBaseBranch(repo, project.defaultBaseBranch, title, 2, 2);
+        const picked = await pickBaseBranch(repo, project.defaultBaseBranch, title, 2, 2, fetch);
         if (picked === BACK) continue;
         if (picked === undefined) return;
         base = picked;
         break;
       }
 
-      const result = await vscode.window.withProgress(
+      const { start, copied } = await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: `Creating worktree ${name}…` },
         async () => {
+          let start = { text: '', warn: false };
           if (useExisting) await git.addWorktreeExistingBranch(repo, folder, name);
-          else await git.addWorktreeNewBranch(repo, folder, name, base!);
-          return copyFiles(repo, folder, project.copyFiles);
+          else start = await addFromLatestBase(repo, folder, name, base!, fetch);
+          return { start, copied: await copyFiles(repo, folder, project.copyFiles) };
         },
       );
-      void vscode.window.showInformationMessage(`Created ${name}. ${formatCopyResult(result)}`);
+      const message = [`Created ${name}.`, start.text, formatCopyResult(copied)].filter(Boolean).join(' ');
+      void (start.warn ? vscode.window.showWarningMessage(message) : vscode.window.showInformationMessage(message));
       await hub.refresh();
       // A user action on a brand-new worktree, so the switch starts its first agent.
       await hub.switcher.switchTo(folder, { userInitiated: true });

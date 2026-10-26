@@ -11,7 +11,7 @@ import * as git from '../../git/git';
 import type { Hub } from '../hub';
 import { BACK } from '../multiStep';
 import { guarded, worktreePathOf } from '../ui';
-import { confirmExistingBranch, createCheckDeps, pickBaseBranch } from './createWorktree';
+import { addFromLatestBase, confirmExistingBranch, createCheckDeps, fetchOnce, pickBaseBranch } from './createWorktree';
 
 export function registerLinkCommands(hub: Hub): vscode.Disposable[] {
   /**
@@ -61,22 +61,27 @@ export function registerLinkCommands(hub: Hub): vscode.Disposable[] {
           const check = await checkNewWorktree(repo, branch, createCheckDeps(repo));
           if (!check.ok) throw new Error(check.reason);
           let base: string | undefined;
+          const fetch = fetchOnce(repo, (line) => hub.output.appendLine(line));
           if (check.branchExists) {
             if (!(await confirmExistingBranch(branch))) return;
           } else {
-            const chosen = await pickBaseBranch(repo, target.config.defaultBaseBranch, `Link · ${target.name}`, 1, 1);
+            const chosen = await pickBaseBranch(repo, target.config.defaultBaseBranch, `Link · ${target.name}`, 1, 1, fetch);
             if (chosen === undefined || chosen === BACK) return;
             base = chosen;
           }
-          const result = await vscode.window.withProgress(
+          const { start, copied } = await vscode.window.withProgress(
             { location: vscode.ProgressLocation.Notification, title: `Creating ${branch} in ${target.name}…` },
             async () => {
-              if (base) await git.addWorktreeNewBranch(repo, check.folder, branch, base);
+              let start = { text: '', warn: false };
+              if (base) start = await addFromLatestBase(repo, check.folder, branch, base, fetch);
               else await git.addWorktreeExistingBranch(repo, check.folder, branch);
-              return copyFiles(repo, check.folder, target.config.copyFiles);
+              return { start, copied: await copyFiles(repo, check.folder, target.config.copyFiles) };
             },
           );
-          void vscode.window.showInformationMessage(`Created ${branch} in ${target.name}. ${formatCopyResult(result)}`);
+          const message = [`Created ${branch} in ${target.name}.`, start.text, formatCopyResult(copied)]
+            .filter(Boolean)
+            .join(' ');
+          void (start.warn ? vscode.window.showWarningMessage(message) : vscode.window.showInformationMessage(message));
           targetPath = check.folder;
         }
 

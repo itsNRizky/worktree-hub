@@ -6,6 +6,7 @@ import {
   branchExists,
   checkBranchName,
   dirtyCount,
+  freshestBase,
   GitError,
   gitEnv,
   isMainCheckout,
@@ -100,6 +101,65 @@ describe('remoteDefaultBranch', () => {
     await git(lonely, 'init', '-q', '-b', 'trunk');
     expect(await remoteDefaultBranch(lonely)).toBe('main');
     await fs.rm(lonely, { recursive: true, force: true });
+  });
+});
+
+describe('freshestBase', () => {
+  /** Adds a commit on the checked-out branch of the main checkout and returns its hash. */
+  const commit = async (msg: string) => {
+    await fs.writeFile(path.join(repo.main, `${msg}.txt`), msg);
+    await git(repo.main, 'add', '.');
+    await git(repo.main, 'commit', '-q', '-m', msg);
+    return (await git(repo.main, 'rev-parse', 'HEAD')).trim();
+  };
+
+  it('uses the remote copy when the local branch is behind it', async () => {
+    const first = (await git(repo.main, 'rev-parse', 'HEAD')).trim();
+    await commit('newer');
+    await git(repo.main, 'push', '-q', 'origin', 'main');
+    await git(repo.main, 'reset', '-q', '--hard', first);
+    expect(await freshestBase(repo.main, 'main')).toEqual({ ref: 'origin/main' });
+  });
+
+  it('uses the remote copy when both are the same', async () => {
+    expect(await freshestBase(repo.main, 'main')).toEqual({ ref: 'origin/main' });
+  });
+
+  it('keeps the local branch, with a note, when it has commits the remote does not have', async () => {
+    await commit('local-only');
+    expect(await freshestBase(repo.main, 'main')).toEqual({
+      ref: 'main',
+      note: 'main has commits that are not on origin/main',
+    });
+  });
+
+  it('finds origin/<name> for a branch that tracks nothing', async () => {
+    const first = (await git(repo.main, 'rev-parse', 'HEAD')).trim();
+    await commit('newer');
+    await git(repo.main, 'push', '-q', 'origin', 'main:staging');
+    await git(repo.main, 'update-ref', 'refs/heads/staging', first);
+    expect(await freshestBase(repo.main, 'staging')).toEqual({ ref: 'origin/staging' });
+  });
+
+  it('follows the tracked branch when its name differs', async () => {
+    await git(repo.main, 'branch', '-q', '--track', 'dev', 'origin/main');
+    expect(await freshestBase(repo.main, 'dev')).toEqual({ ref: 'origin/main' });
+  });
+
+  it('ignores a tracked branch that was deleted on the remote', async () => {
+    await git(repo.main, 'branch', '-q', '--no-track', 'gone', 'main');
+    await git(repo.main, 'config', 'branch.gone.remote', 'origin');
+    await git(repo.main, 'config', 'branch.gone.merge', 'refs/heads/gone');
+    expect(await freshestBase(repo.main, 'gone')).toEqual({ ref: 'gone' });
+  });
+
+  it('keeps a local branch that has no remote copy', async () => {
+    await git(repo.main, 'branch', '-q', 'solo');
+    expect(await freshestBase(repo.main, 'solo')).toEqual({ ref: 'solo' });
+  });
+
+  it('keeps a remote branch as it is', async () => {
+    expect(await freshestBase(repo.main, 'origin/main')).toEqual({ ref: 'origin/main' });
   });
 });
 
