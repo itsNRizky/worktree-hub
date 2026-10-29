@@ -133,7 +133,7 @@ export function registerCreateWorktree(hub: Hub): vscode.Disposable {
           totalSteps: 2,
           value: name,
           prompt: 'Name for the branch and the worktree folder',
-          placeholder: 'feat/abc-123',
+          placeholder: 'Type your worktree name',
           validate: async (v) => {
             const r = await checkNewWorktree(repo, v, deps);
             return r.ok ? undefined : r.reason;

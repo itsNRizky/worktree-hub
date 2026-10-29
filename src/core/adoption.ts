@@ -1,5 +1,5 @@
 // After a window reload, VS Code reconnects to the same terminal processes but forgets the names
-// and options we gave them (seen in the spike, docs/spike-results.md #5). The process ID is the
+// and options we gave them (seen in testing). The process ID is the
 // only thing that stays, so stored records are matched to live terminals by process ID.
 import type { TerminalRecord } from './agentTypes';
 

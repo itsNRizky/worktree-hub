@@ -1,5 +1,5 @@
 // The Claude Code settings file passed to agents with `claude --settings <file>`. It only adds
-// hooks; the user's own settings and hooks stay as they are (verified: docs/spike-results.md #6).
+// hooks; the user's own settings and hooks stay as they are (verified in testing).
 import { shellQuote } from './claudeCommand';
 
 /**

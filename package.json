@@ -4,6 +4,13 @@
   "description": "Projects, git worktrees and Claude Code agents in one VS Code window.",
   "version": "0.1.0",
   "publisher": "nrizky",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/itsNRizky/worktree-hub.git"
+  },
+  "bugs": "https://github.com/itsNRizky/worktree-hub/issues",
+  "homepage": "https://github.com/itsNRizky/worktree-hub#readme",
   "private": true,
   "engines": {
     "vscode": "^1.140.0"
