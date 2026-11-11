@@ -151,6 +151,9 @@ confirmation lists uncommitted changes and open terminals first. **Branches are 
 "Remove and open in main" also checks the branch out in the main checkout, if that checkout has no
 uncommitted changes.
 
+Before the folder is deleted, the worktree's Claude chats are moved to the main checkout. Open them
+there with `/resume`.
+
 ## Requirements
 
 - VS Code 1.140 or newer
@@ -225,6 +228,8 @@ sits next to your code.
   Run them yourself in the worktree's terminal. Every command Worktree Hub types into a terminal is
   visible there.
 - It never changes your Claude Code settings.
+- On Remove, it moves the worktree's chat files (in `~/.claude/projects`) to the main checkout's chat
+  folder. On Move, it copies one chat. It never edits a chat file.
 - It never deletes a branch, and it never moves your local base branch.
 
 Project-specific setup is yours to handle. For example, a Docker Compose project takes its name

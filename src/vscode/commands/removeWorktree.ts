@@ -1,26 +1,81 @@
 // Remove Worktree: removes the worktree and every worktree linked to it. Branches are kept.
+// The worktree's Claude chats are moved to the main checkout first, so `/resume` there finds them.
 import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { findWorktree } from '../../app/repository';
-import { openInMainPlan, openInMainSummary, removeDialogText, type MainCheck } from '../../core/removePlan';
+import { findWorktree, type ProjectEntry } from '../../app/repository';
+import { claudeConfigDir } from '../../core/chats';
+import {
+  CHATS_MOVED_LINE,
+  chatMoveSummary,
+  openInMainPlan,
+  openInMainSummary,
+  removeDialogText,
+  type ChatMoveReport,
+  type MainCheck,
+} from '../../core/removePlan';
 import type { WorktreeNode } from '../../core/treeModel';
+import { chatFolder, listChatIds, moveChats } from '../../fs/chatFiles';
 import * as git from '../../git/git';
 import { discardAndCloseTabs } from '../editorTabs';
 import type { Hub } from '../hub';
 import { guarded, worktreePathOf } from '../ui';
 
+interface ChatSource {
+  branch: string;
+  /** The worktree's chat folder. Found before the removal, while the folder still has its real path. */
+  from: string;
+  main: string;
+  chats: number;
+}
+
+const mainCheckoutOf = (project: ProjectEntry) => project.worktrees.find((w) => w.isPrimary)?.path ?? project.config.path;
+
 export function registerRemoveWorktree(hub: Hub): vscode.Disposable {
-  /** A worktree whose folder was deleted by hand: let git forget it. */
-  const removeMissing = async (wtPath: string, repo: string, label: string) => {
+  const configDir = claudeConfigDir(process.env, os.homedir());
+
+  const chatSource = async (wtPath: string, project: ProjectEntry, branch: string): Promise<ChatSource> => {
+    const from = await chatFolder(wtPath, configDir);
+    const chats = (await listChatIds(from).catch(() => [])).length;
+    return { branch, from, main: mainCheckoutOf(project), chats };
+  };
+
+  /** Never throws: a chat that cannot be moved must not stop the removal. It stays where it was. */
+  const moveChatsToMain = async (c: ChatSource): Promise<ChatMoveReport> => {
+    const report: ChatMoveReport = { branch: c.branch, chatFolder: c.from, failed: 0, backups: [] };
+    try {
+      const r = await moveChats(c.from, await chatFolder(c.main, configDir), new Date());
+      for (const f of r.failed) hub.output.appendLine(`Could not move chat ${f.id} from ${c.from}: ${f.reason}`);
+      report.failed = r.failed.length;
+      report.backups = r.backups;
+    } catch (err) {
+      hub.output.appendLine(`Could not move the chats in ${c.from}: ${String(err)}`);
+      report.failed = c.chats;
+    }
+    return report;
+  };
+
+  const showChatSummary = (reports: ChatMoveReport[]) => {
+    const summary = chatMoveSummary(reports);
+    if (!summary) return;
+    if (reports.some((r) => r.failed > 0)) void vscode.window.showWarningMessage(summary);
+    else void vscode.window.showInformationMessage(summary);
+  };
+
+  /** A worktree whose folder was deleted by hand: let git forget it. Its chats still exist, so they move too. */
+  const removeMissing = async (wtPath: string, project: ProjectEntry, label: string) => {
+    const source = await chatSource(wtPath, project, label);
+    const detail = `Its folder is gone. Git will forget it (git worktree prune). The branch is kept.`;
     const ok = await vscode.window.showWarningMessage(
       `Forget the missing worktree ${label}?`,
-      { modal: true, detail: `Its folder is gone. Git will forget it (git worktree prune). The branch is kept.` },
+      { modal: true, detail: source.chats > 0 ? `${detail}\n${CHATS_MOVED_LINE}` : detail },
       'Forget Worktree',
     );
     if (ok !== 'Forget Worktree') return;
-    await git.pruneWorktrees(repo);
     hub.registry.disposeForWorktrees([wtPath]);
+    showChatSummary([await moveChatsToMain(source)]);
+    await git.pruneWorktrees(project.config.path);
     await hub.deleteTabs([wtPath]);
     await hub.links.unlink(wtPath);
     await hub.refresh();
@@ -34,7 +89,7 @@ export function registerRemoveWorktree(hub: Hub): vscode.Disposable {
       if (!clicked || !found) return;
       if (found.worktree.isPrimary) throw new Error('The main checkout cannot be removed.');
       if (found.worktree.missing) {
-        await removeMissing(clicked, found.project.config.path, found.worktree.branch ?? path.basename(clicked));
+        await removeMissing(clicked, found.project, found.worktree.branch ?? path.basename(clicked));
         return;
       }
 
@@ -42,13 +97,17 @@ export function registerRemoveWorktree(hub: Hub): vscode.Disposable {
       const entries = group
         .map((p) => findWorktree(hub.snapshot(), p))
         .filter((e): e is NonNullable<typeof e> => !!e && !e.worktree.isPrimary);
+      const sources = await Promise.all(
+        entries.map((e) => chatSource(e.worktree.path, e.project, e.worktree.branch ?? path.basename(e.worktree.path))),
+      );
       const items = await Promise.all(
-        entries.map(async (e) => ({
+        entries.map(async (e, i) => ({
           repoName: e.project.name,
-          branch: e.worktree.branch ?? path.basename(e.worktree.path),
+          branch: sources[i].branch,
           // Fresh count, not the cached one: the user may have changed files since the last refresh.
           dirtyCount: e.worktree.missing ? 0 : await git.dirtyCount(e.worktree.path).catch(() => e.worktree.dirtyCount),
           openTerminals: hub.registry.forWorktrees([e.worktree.path]).length,
+          chats: sources[i].chats,
         })),
       );
 
@@ -74,10 +133,13 @@ export function registerRemoveWorktree(hub: Hub): vscode.Disposable {
       await hub.deleteTabs(paths);
 
       const errors: string[] = [];
+      const reports: ChatMoveReport[] = [];
       await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: message.replace('?', '…') },
         async () => {
-          for (const e of entries) {
+          for (const [i, e] of entries.entries()) {
+            // The terminals are closed, so Claude has written its last lines.
+            reports.push(await moveChatsToMain(sources[i]));
             try {
               await git.removeWorktree(e.project.config.path, e.worktree.path);
               // Tidy up `.worktrees/<repo>` when it is empty. Non-recursive: never deletes files.
@@ -88,6 +150,7 @@ export function registerRemoveWorktree(hub: Hub): vscode.Disposable {
           }
         },
       );
+      showChatSummary(reports);
 
       if (choice === 'Remove and open in main') {
         const checks: MainCheck[] = await Promise.all(
