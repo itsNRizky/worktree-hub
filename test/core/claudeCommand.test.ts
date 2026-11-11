@@ -19,6 +19,16 @@ describe('buildClaudeCommand', () => {
       `claude --settings '/s.json' --add-dir '/w/be a' --add-dir '/w/c'`,
     );
   });
+
+  it('resumes a moved chat as a fork, with the note as the first message', () => {
+    expect(
+      buildClaudeCommand({
+        settingsPath: '/s.json',
+        addDirs: ['/w/api'],
+        resume: { sessionId: 'abc-123', note: `Moved to /w/it's here. Reply only "OK".` },
+      }),
+    ).toBe(`claude --settings '/s.json' --add-dir '/w/api' --resume 'abc-123' --fork-session 'Moved to /w/it'\\''s here. Reply only "OK".'`);
+  });
 });
 
 describe('terminalName', () => {

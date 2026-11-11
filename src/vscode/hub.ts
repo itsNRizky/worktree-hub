@@ -41,7 +41,8 @@ export interface Hub {
   getActive(): string[];
   setActive(paths: string[]): Promise<void>;
   deleteTabs(worktrees: string[]): Promise<void>;
-  startAgent(worktreePath: string): Promise<void>;
+  /** `resume` continues a moved chat in the new agent (Move to Worktree…). */
+  startAgent(worktreePath: string, resume?: { sessionId: string; note: string }): Promise<void>;
   /** Called after every render, e.g. by the status bar. */
   onRender(cb: () => void): void;
 }
@@ -134,9 +135,9 @@ export async function createHub(context: vscode.ExtensionContext, output: vscode
     });
   };
 
-  const startAgent = async (worktreePath: string) => {
+  const startAgent = async (worktreePath: string, resume?: { sessionId: string; note: string }) => {
     const addDirs = links.groupOf(worktreePath).filter((p) => p !== worktreePath);
-    await registry.createAgent(worktreePath, buildClaudeCommand({ settingsPath, addDirs }));
+    await registry.createAgent(worktreePath, buildClaudeCommand({ settingsPath, addDirs, resume }));
   };
 
   const setActive = async (paths: string[]) => {
