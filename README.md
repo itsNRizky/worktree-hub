@@ -154,6 +154,20 @@ uncommitted changes.
 Before the folder is deleted, the worktree's Claude chats are moved to the main checkout. Open them
 there with `/resume`.
 
+### Moving a chat to a new worktree
+
+Right-click an agent and pick **Move to Worktree…**. It asks the same two things as **New Worktree**
+and creates the worktree the same way. Then it copies the agent's chat into the new worktree and
+continues it there:
+
+```bash
+claude --settings <hook settings file> --resume <chat> --fork-session '<note>'
+```
+
+The note is the chat's first message. It tells Claude the new folder and asks it not to change
+files in the old one. `--fork-session` gives the moved chat a new ID, so the old chat does not
+change. The old agent stays open; close it with `×` when you are done.
+
 ## Requirements
 
 - VS Code 1.140 or newer
@@ -219,7 +233,7 @@ sits next to your code.
 | Worktree row: click | Switch to it |
 | Worktree row: hover | `+` New Agent · link icon: Link to Another Repo… |
 | Worktree row: right-click | New Agent, New Terminal, Link / Unlink, Reveal in Finder, Remove Worktree… |
-| Agent or terminal row | Click: show it · `×`: close it |
+| Agent or terminal row | Click: show it · `×`: close it · right-click an agent: Move to Worktree… |
 | Command Palette | **Worktree Hub: Switch to Worktree…** to switch from the keyboard |
 
 ## What it never does

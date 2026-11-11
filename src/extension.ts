@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { registerAgentCommands } from './vscode/commands/agents';
 import { registerCreateWorktree } from './vscode/commands/createWorktree';
 import { registerLinkCommands } from './vscode/commands/link';
+import { registerMoveAgent } from './vscode/commands/moveAgent';
 import { registerProjectCommands } from './vscode/commands/projects';
 import { registerQuickSwitch } from './vscode/commands/quickSwitch';
 import { registerRemoveWorktree } from './vscode/commands/removeWorktree';
@@ -29,6 +30,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     registerCreateWorktree(hub),
     ...registerLinkCommands(hub),
     registerRemoveWorktree(hub),
+    registerMoveAgent(hub),
     registerQuickSwitch(hub),
     registerStatusBar(hub),
   );
