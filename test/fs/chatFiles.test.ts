@@ -1,9 +1,15 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { chatFolderName } from '../../src/core/chats';
 import { chatFolder, copyChat, listChatIds, moveChats } from '../../src/fs/chatFiles';
 import { makeTempDir } from '../helpers/tmpRepo';
+
+// copyFile is wrapped (it still copies), so a test can add a line to a chat during a move.
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>();
+  return { ...actual, copyFile: vi.fn(actual.copyFile) };
+});
 
 const NOW = new Date(2026, 10, 10, 12, 34, 56);
 const BAK = 'a.jsonl.bak-20261110-123456';
@@ -135,6 +141,34 @@ describe('moveChats', () => {
     expect(await read(path.join(to, 'a.jsonl'))).toBe('1\nx\n');
     expect(await read(path.join(to, BAK))).toBe('1\ny\n');
     expect(await exists(path.join(from, 'a.jsonl'))).toBe(false);
+  });
+
+  it('copies a chat again when it grows while it is moved', async () => {
+    await put(path.join(from, 'a.jsonl'), '1\n');
+    const copyFile = vi.mocked(fs.copyFile);
+    const real = copyFile.getMockImplementation()!;
+    copyFile.mockImplementationOnce(async (src, dst, mode) => {
+      await real(src, dst, mode);
+      // Claude writes a last line after the first copy.
+      await fs.appendFile(path.join(from, 'a.jsonl'), '2\n');
+    });
+    const r = await moveChats(from, to, NOW);
+    expect(r).toEqual({ moved: 1, backups: [], failed: [] });
+    expect(await read(path.join(to, 'a.jsonl'))).toBe('1\n2\n');
+    expect(await exists(path.join(from, 'a.jsonl'))).toBe(false);
+  });
+
+  it('keeps the source chat when it changes in a different way while it is moved', async () => {
+    await put(path.join(from, 'a.jsonl'), '1\n');
+    const copyFile = vi.mocked(fs.copyFile);
+    const real = copyFile.getMockImplementation()!;
+    copyFile.mockImplementationOnce(async (src, dst, mode) => {
+      await real(src, dst, mode);
+      await fs.writeFile(path.join(from, 'a.jsonl'), 'x\n');
+    });
+    const r = await moveChats(from, to, NOW);
+    expect(r).toEqual({ moved: 0, backups: [], failed: [{ id: 'a', reason: 'changed while it was moved' }] });
+    expect(await read(path.join(from, 'a.jsonl'))).toBe('x\n');
   });
 
   it('keeps the source chat when the copy fails', async () => {

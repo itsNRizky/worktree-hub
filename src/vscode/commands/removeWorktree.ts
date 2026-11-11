@@ -138,7 +138,7 @@ export function registerRemoveWorktree(hub: Hub): vscode.Disposable {
         { location: vscode.ProgressLocation.Notification, title: message.replace('?', '…') },
         async () => {
           for (const [i, e] of entries.entries()) {
-            // The terminals are closed, so Claude has written its last lines.
+            // The terminals are closed. If Claude still writes a last line, moveChats copies it again.
             reports.push(await moveChatsToMain(sources[i]));
             try {
               await git.removeWorktree(e.project.config.path, e.worktree.path);

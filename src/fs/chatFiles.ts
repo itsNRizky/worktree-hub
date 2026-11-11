@@ -105,6 +105,9 @@ async function placeFile(
   return { holder: dst, backup };
 }
 
+/** How often a chat that grows during a move is copied before the move gives up on it. */
+const COPY_ATTEMPTS = 3;
+
 export interface MoveChatsResult {
   moved: number;
   /** File names of backups written in the target folder. */
@@ -130,10 +133,16 @@ export async function moveChats(fromFolder: string, toFolder: string, now: Date)
         if (placed.backup) result.backups.push(placed.backup);
       }
       // Claude may write a last line after its terminal closed. So each source file is read
-      // again right before the delete: a line added during the move fails the chat, not lost.
+      // again right before the delete. When it only grew, it is copied again; any other change
+      // fails the chat, and the source stays.
       for (const [i, file] of files.entries()) {
-        const compare = compareChat(await fs.readFile(holders[i]), await fs.readFile(path.join(fromFolder, file)));
-        if (compare !== 'same' && compare !== 'existing-has-more') throw new Error('changed while it was moved');
+        const src = path.join(fromFolder, file);
+        for (let attempt = 1; ; attempt++) {
+          const compare = compareChat(await fs.readFile(holders[i]), await fs.readFile(src));
+          if (compare === 'same' || compare === 'existing-has-more') break;
+          if (compare !== 'incoming-has-more' || attempt === COPY_ATTEMPTS) throw new Error('changed while it was moved');
+          await replaceFile(src, holders[i]);
+        }
       }
       // Only the files that were moved are deleted. A file that appeared since stays.
       for (const file of files) await fs.rm(path.join(fromFolder, file));
